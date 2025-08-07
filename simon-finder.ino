@@ -1,16 +1,14 @@
 #define NUM_BTNS 4
 #define NUM_LEDS 4
 
-int btnPins[NUM_BTNS] = {2, 3, 4, 5};     
-int ledPins[NUM_LEDS] = {6, 7, 8, 9};    
+int btnPins[NUM_BTNS] = {26, 27, 28, 29};  
+int ledPins[NUM_LEDS] = {6, 7, 0, 1};     
 
 const int maxSequence = 100;
 int sequence[maxSequence];
-int level = 0;
+int level = 1;
 int inputIndex = 0;
 bool isPlayerTurn = false;
-bool inGame = false;
-int winLevel = 0;
 
 void setup() {
   for (int i = 0; i < NUM_BTNS; i++) {
@@ -18,92 +16,42 @@ void setup() {
     pinMode(ledPins[i], OUTPUT);
     digitalWrite(ledPins[i], LOW);
   }
-  randomSeed(analogRead(0)); 
-  showMenu();
-}
-
-void loop() {
-  if (!inGame) return;
-
-  if (isPlayerTurn) {
-    int btn = readButton();
-    if (btn != -1) {
-      flashLED(btn);
-      if (btn == sequence[inputIndex]) {
-        inputIndex++;
-        if (inputIndex == level) {
-          delay(400);
-          if (level == winLevel) {
-            winAnimation();
-            showMenu();
-            return;
-          }
-          nextLevel();
-        }
-      } else {
-        gameOver();
-      }
-    }
-  }
-}
+  randomSeed(analogRead(0));
 
 
-void showMenu() {
-  inGame = false;
-
-  for (int i = 0; i < NUM_LEDS; i++) {
-    digitalWrite(ledPins[i], HIGH);
+  for (int i = 0; i < 5; i++) {
+    setAllLEDs(HIGH);
     delay(300);
-    digitalWrite(ledPins[i], LOW);
-    delay(150);
+    setAllLEDs(LOW);
+    delay(300);
   }
 
-
-  while (true) {
-    for (int i = 0; i < NUM_LEDS; i++) digitalWrite(ledPins[i], HIGH);
-    delay(300);
-    for (int i = 0; i < NUM_LEDS; i++) digitalWrite(ledPins[i], LOW);
-    delay(300);
-
-    int mode = readButton();
-    if (mode != -1) {
-      switch (mode) {
-        case 0: winLevel = 10; break;
-        case 1: winLevel = 15; break;
-        case 2: winLevel = 25; break;
-        case 3: winLevel = maxSequence; break;
-      }
-
-      countdownSequence();
-      startGame();
-      break;
-    }
-  }
-}
-
-void countdownSequence() {
-  for (int i = NUM_LEDS - 1; i >= 0; i--) {
-    digitalWrite(ledPins[i], HIGH);
-    delay(300);
-    digitalWrite(ledPins[i], LOW);
-    delay(150);
-  }
-  delay(5000);
-}
-
-void startGame() {
-  inGame = true;
-  level = 1;
-  inputIndex = 0;
   generateSequence();
   playSequence();
 }
 
+void loop() {
+  if (!isPlayerTurn) return;
 
-void nextLevel() {
-  level++;
-  inputIndex = 0;
-  playSequence();
+  int btn = readButton();
+  if (btn != -1) {
+    flashLED(btn);
+
+    if (btn == sequence[inputIndex]) {
+      inputIndex++;
+      if (inputIndex == level) {
+        blinkAllLEDs(1);   
+        level++;
+        if (level > maxSequence) level = maxSequence;
+        inputIndex = 0;
+        delay(500);
+        playSequence();
+      }
+    } else {
+      blinkAllLEDs(3);   
+      restartGame();
+    }
+  }
 }
 
 void generateSequence() {
@@ -120,6 +68,7 @@ void playSequence() {
     delay(250);
   }
   isPlayerTurn = true;
+  inputIndex = 0;
 }
 
 void flashLED(int index) {
@@ -129,57 +78,36 @@ void flashLED(int index) {
   delay(150);
 }
 
-
-void gameOver() {
-  isPlayerTurn = false;
-
- 
-  for (int i = 0; i < NUM_LEDS; i++) digitalWrite(ledPins[i], HIGH);
-  delay(500);
-  for (int i = 0; i < NUM_LEDS; i++) digitalWrite(ledPins[i], LOW);
-  delay(500);
-
- 
-  int score = level - 1;
-  int fullFlashes = score / 4;
-  int singleFlashes = score % 4;
-
-  for (int i = 0; i < fullFlashes; i++) {
-    for (int j = 0; j < NUM_LEDS; j++) digitalWrite(ledPins[j], HIGH);
-    delay(300);
-    for (int j = 0; j < NUM_LEDS; j++) digitalWrite(ledPins[j], LOW);
-    delay(300);
-  }
-
-  for (int i = 0; i < singleFlashes; i++) {
-    digitalWrite(ledPins[i], HIGH);
-    delay(300);
-    digitalWrite(ledPins[i], LOW);
-    delay(300);
-  }
-
-  delay(1000);
-  showMenu();
-}
-
-void winAnimation() {
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < NUM_LEDS; j++) digitalWrite(ledPins[j], HIGH);
-    delay(300);
-    for (int j = 0; j < NUM_LEDS; j++) digitalWrite(ledPins[j], LOW);
-    delay(300);
-  }
-}
-
-
-
 int readButton() {
   for (int i = 0; i < NUM_BTNS; i++) {
     if (digitalRead(btnPins[i]) == LOW) {
-      delay(20); // debounce
-      while (digitalRead(btnPins[i]) == LOW); // wait for release
+      delay(20); 
+      while (digitalRead(btnPins[i]) == LOW); 
       return i;
     }
   }
   return -1;
+}
+
+void blinkAllLEDs(int times) {
+  for (int i = 0; i < times; i++) {
+    setAllLEDs(HIGH);
+    delay(300);
+    setAllLEDs(LOW);
+    delay(300);
+  }
+}
+
+void setAllLEDs(int state) {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    digitalWrite(ledPins[i], state);
+  }
+}
+
+void restartGame() {
+  level = 1;
+  inputIndex = 0;
+  generateSequence();
+  delay(1000);
+  playSequence();
 }
